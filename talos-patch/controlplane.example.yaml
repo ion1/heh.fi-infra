@@ -1,0 +1,27 @@
+machine:
+  certSANs:
+    - talos.hetzner-hel1.heh.fi
+    - talos-int.hetzner-hel1.heh.fi
+    - talos-ext.hetzner-hel1.heh.fi
+  kubelet:
+    extraArgs:
+      register-with-taints: "node-role.kubernetes.io/master:PreferNoSchedule"
+cluster:
+  apiServer:
+    certSANs:
+      - kube.hetzner-hel1.heh.fi
+      - kube-int.hetzner-hel1.heh.fi
+      - kube-ext.hetzner-hel1.heh.fi
+  etcd:
+    subnet: 10.0.0.0/16
+  inlineManifests:
+  - name: hcloud-secret
+    contents: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        namespace: kube-system
+        name: hcloud
+      stringData:
+        network: "1234567"
+        token: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01"

@@ -1,0 +1,28 @@
+machine:
+  time:
+    servers:
+      - ntp1.hetzner.de
+      - ntp2.hetzner.de
+      - ntp3.hetzner.de
+  systemDiskEncryption:
+    ephemeral: &diskEncryption
+      provider: luks2
+      keys:
+        - nodeID: {}
+          slot: 0
+      options:
+        - no_read_workqueue
+        - no_write_workqueue
+    state: *diskEncryption
+cluster:
+  network:
+    #cni:
+    #  name: custom
+    #  urls:
+    #    - https://raw.githubusercontent.com/ion1/heh.fi-infra/master/k8s-bootstrap/cni.yaml
+  extraManifests:
+    - https://raw.githubusercontent.com/ion1/heh.fi-infra/master/k8s-bootstrap/extra-manifests.yaml
+  externalCloudProvider:
+    enabled: true
+    manifests:
+      - https://raw.githubusercontent.com/ion1/heh.fi-infra/master/k8s-bootstrap/external-cloud-provider.yaml

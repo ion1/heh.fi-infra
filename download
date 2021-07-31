@@ -1,0 +1,97 @@
+#!/bin/sh
+set -eu
+
+SHA256SUM=
+URL=
+MODE=
+EXTRACT=
+TARGET=
+SOURCE=
+
+usage() {
+  printf 'Usage: %s PARAMETER...\n\n' "$0"
+  printf 'Mandatory parameters:\n'
+  printf '  --sha256=SHA256SUM  The SHA-256 checksum to verify the download against\n'
+  printf '  --url=URL           The URL to download\n'
+  printf '  --target=TARGET     The target location for the file\n\n'
+  printf 'Optional parameters:\n'
+  printf '  --help              Print this text and exit\n'
+  printf '  --mode=MODE         Set a mode for the target file\n'
+  printf '  --extract=EXTRACT   Extract a file out of a downloaded tarball as the target\n\n'
+}
+
+error() {
+  >&2 printf "%s: $1\n" "$0" "$2"
+  exit 1
+}
+
+BOLD="$(tput bold 2>/dev/null || :)"
+GREEN="$(tput setaf 2 2>/dev/null || :)"
+NORMAL="$(tput sgr0 2>/dev/null || :)"
+
+status() {
+  local format
+  format="$1"; shift
+  printf "%s$format%s\n" "$GREEN$BOLD" "$@" "$NORMAL"
+}
+
+OPTS=$(getopt -o '' -l help,sha256:,url:,mode:,extract:,target: -s sh -n "$0" -- "$@")
+eval set -- "$OPTS"
+unset OPTS
+
+while :; do
+  case "$1" in
+    --help) usage; exit 0 ;;
+    --sha256) shift; SHA256SUM="$1" ;;
+    --url) shift; URL="$1" ;;
+    --mode) shift; MODE="$1" ;;
+    --extract) shift; EXTRACT="$1" ;;
+    --target) shift; TARGET="$1" ;;
+    --) shift; break ;;
+  esac
+  shift
+done
+
+if [ -z "$SHA256SUM" ]; then
+  error "%s" "No SHA-256 sum given"
+fi
+
+if [ -z "$URL" ]; then
+  error "%s" "No URL given"
+fi
+
+if [ -z "$TARGET" ]; then
+  error "%s" "No target given"
+fi
+
+if [ $# -gt 0 ]; then
+  error "%s" "Extra parameters given"
+fi
+
+WORKDIR="$(mktemp -d --tmpdir download.XXXXXXXXXX)"
+trap 'rm -fr "$WORKDIR"' 0 1 2 13 15
+
+BASENAME="$(basename "$URL")"
+
+status 'Downloading %s' "$URL"
+curl -L -o "$WORKDIR/$BASENAME" "$URL"
+
+status 'Checking SHA-256 sum (%s)' "$SHA256SUM"
+printf '%s %s\n' "$SHA256SUM" "$WORKDIR/$BASENAME" | sha256sum -c
+
+if [ -n "$EXTRACT" ]; then
+  status 'Extracting %s' "$EXTRACT"
+  tar axf "$WORKDIR/$BASENAME" -C "$WORKDIR" "$EXTRACT"
+  SOURCE="$WORKDIR/$EXTRACT"
+else
+  SOURCE="$WORKDIR/$BASENAME"
+fi
+
+if [ -n "$MODE" ]; then
+  status 'Setting mode %s %s' "$MODE" "$SOURCE"
+  chmod "$MODE" "$SOURCE"
+fi
+
+status 'Copying to %s' "$TARGET"
+mkdir -pv "$(dirname "$TARGET")"
+cp -av "$SOURCE" "$TARGET"
